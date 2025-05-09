@@ -1,0 +1,7 @@
+yfinance
+pandas
+os
+genai
+dotenv
+re 
+time

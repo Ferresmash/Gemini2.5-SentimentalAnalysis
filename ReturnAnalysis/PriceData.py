@@ -16,7 +16,7 @@ tickers = [
 start_date = "2023-04-01"
 end_date = "2025-05-01"
 
-output_folder = "Aktiepriser 2023-2025"
+output_folder = "StockReturns"
 os.makedirs(output_folder, exist_ok=True)
 print(f"Output will be saved to: {os.path.abspath(output_folder)}")
 prices_csv_path = os.path.join(output_folder, "omxs30_monthly_prices.csv")
