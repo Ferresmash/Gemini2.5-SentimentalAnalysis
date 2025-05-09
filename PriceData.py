@@ -13,8 +13,8 @@ tickers = [
     'SINCH.ST', 'SKF-B.ST', 'SWED-A.ST', 'TEL2-B.ST', 'TELIA.ST', 'VOLV-B.ST'
 ]
 
-start_date = "2023-04-09"
-end_date = "2025-04-09"
+start_date = "2023-04-01"
+end_date = "2025-05-01"
 
 output_folder = "Aktiepriser 2023-2025"
 os.makedirs(output_folder, exist_ok=True)
