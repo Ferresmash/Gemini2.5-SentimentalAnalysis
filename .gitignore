@@ -1,5 +1,20 @@
 .venv
 AktiePriser 2023-2025
-MonthlyNews
 ApiKey.txt
 commands.txt
+sentiment_scores
+RandomForest/oldResults
+RandomForest/trainingdata
+RandomForest/__pycache__
+ReturnAnalysis/__pycache__
+ReturnAnalysis/StockReturns
+SentimentAnalysis/news_files(21-23)
+SentimentAnalysis/news_files(23-25)
+SentimentAnalysis/sentiment_scores(21-23)
+SentimentAnalysis/sentiment_scores(23-25)
+__pycache__
+t_data.csv
+risk-free-rate.csv
+index_weights.csv
+predictions_full.csv
+predictions_returns_only.csv

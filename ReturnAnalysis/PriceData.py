@@ -1,19 +1,13 @@
 import yfinance as yf
 import pandas as pd
 import os 
+from Tickers import tickers
+
 
 # This script downloads daily stock prices for a list of tickers from Yahoo Finance,
 # processes the data to calculate monthly prices and returns, and saves the results to CSV files. 
 
-tickers = [
-    'ABB.ST', 'ALFA.ST', 'ASSA-B.ST', 'AZN.ST', 'ATCO-A.ST', 'ATCO-B.ST',
-    'BOL.ST', 'ELUX-B.ST', 'ERIC-B.ST', 'ESSITY-B.ST', 'EVO.ST', 'GETI-B.ST',
-    'SHB-A.ST', 'HM-B.ST', 'HEXA-B.ST', 'INVE-B.ST', 'KINV-B.ST', 'NIBE-B.ST',
-    'NDA-SE.ST', 'SAAB-B.ST', 'SBB-B.ST', 'SAND.ST', 'SCA-B.ST', 'SEB-A.ST',
-    'SINCH.ST', 'SKF-B.ST', 'SWED-A.ST', 'TEL2-B.ST', 'TELIA.ST', 'VOLV-B.ST'
-]
-
-start_date = "2023-04-01"
+start_date = "2021-03-01"
 end_date = "2025-05-01"
 
 output_folder = "StockReturns"
@@ -66,22 +60,13 @@ except Exception as e:
 if not daily_data.empty:
     print("\nProcessing downloaded data...")
     monthly_prices = daily_data.resample('M').last()
-    print("\nMonthly Adjusted Closing Prices (Last 5 Months):")
-    print(monthly_prices.tail())
-
     monthly_returns = monthly_prices.pct_change()
     monthly_returns = monthly_returns.dropna(how='all')
-    print("\nCalculated Monthly Returns (Last 5 Months):")
-    print(monthly_returns.tail())
-
     try:
         monthly_prices.to_csv(prices_csv_path)
         monthly_returns.to_csv(returns_csv_path)
-        print(f"\nData successfully saved to:")
-        print(f" - Prices: {prices_csv_path}")
-        print(f" - Returns: {returns_csv_path}")
     except Exception as e:
         print(f"\nError saving files to CSV: {e}")
 
 else:
-    print("\nCould not retrieve valid data or the resulting dataframe is empty. Cannot process or save.")
+    print("\nThe dataframe is empty.")

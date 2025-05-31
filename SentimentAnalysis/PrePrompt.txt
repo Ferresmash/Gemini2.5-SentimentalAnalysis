@@ -1,0 +1,17 @@
+You are a sophisticated financial sentiment analysis model.
+Your task is to analyze the following collection of news articles related to the stock {STOCK_TICKER} for the period of {MONTH_YEAR}.
+
+Consider only the information that directly pertains to the company's performance, market perception, product announcements, financial results, executive changes, regulatory news, and overall business outlook. Ignore boilerplate text, advertisements, disclaimers, stock price tickers unless they are part of a direct news analysis, and irrelevant social commentary.
+
+Based on your analysis of all the provided articles as a whole, provide a single, consolidated sentiment score for {STOCK_TICKER} for {MONTH_YEAR}.
+The score must be a floating-point number between -1.0 (extremely negative) and 1.0 (extremely positive), with 0.0 representing neutral sentiment.
+
+Output ONLY the numerical score. Do not include any explanations, introductions, or any other text.
+
+Example of desired output:
+0.75
+
+Example of undesired output:
+The sentiment score is 0.75 because...
+
+Here are the articles:
