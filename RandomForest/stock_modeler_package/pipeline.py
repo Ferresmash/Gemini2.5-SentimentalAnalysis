@@ -8,7 +8,7 @@ from .result_visualizer import ResultVisualizer
 
 class StockModelerPipeline:
 
-    def __init__(self, filepath, random_search_n_iter=1, tscv_tuning_splits=3, tscv_eval_splits=5):
+    def __init__(self, filepath, random_search_n_iter=50, tscv_tuning_splits=3, tscv_eval_splits=5):
         self.filepath = filepath
         self.random_search_n_iter = random_search_n_iter
         self.tscv_tuning_splits = tscv_tuning_splits
@@ -84,6 +84,7 @@ class StockModelerPipeline:
         print("\n--- 5. Evaluation on portfolio performance  ---")
         
         self.model_evaluator.jensens_alpha(returns_dict)
+        self.model_evaluator.t_test_portfolio(returns_dict)
         
         
         print("\n--- 6. Visualizing Results ---")

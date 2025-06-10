@@ -1,4 +1,3 @@
-# stock_modeler_package/model_tuner.py
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV, GridSearchCV

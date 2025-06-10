@@ -42,7 +42,6 @@ class ModelEvaluator:
                 dates = X_test.index
                 series_cv.loc[dates] = y_pred
 
-                # record metrics
                 scores['mse'].append(mean_squared_error(y_test, y_pred))
                 scores['mae'].append(mean_absolute_error(y_test, y_pred))
                 scores['r2'].append(r2_score(y_test, y_pred))
@@ -120,100 +119,138 @@ class ModelEvaluator:
             alpha_significance = 0.05
             if p_value < alpha_significance:
                 print(f"The difference in mean aggregated monthly predictions is statistically significant at the {alpha_significance*100:.0f}% level.")
-                if t_statistic > 0: # ttest_rel(a,b) tests mean(a-b). 'a' is 'full', 'b' is 'only'.
+                if t_statistic > 0:
                     print("The 'full' strategy has significantly higher mean aggregated predictions.")
                 else:
                     print("The 'returns_only' strategy has significantly higher mean aggregated predictions.")
             else:
                 print(f"There is no statistically significant difference in mean aggregated monthly predictions at the {alpha_significance*100:.0f}% level.")
       
-    def jensens_alpha(self, returns_dict, risk_free_csv="risk-free-rate.csv"):
+    def jensens_alpha(self, returns_dict: dict, risk_free_csv: str = "risk-free-rate.csv"):
+        """
+        Calculates Jensen's Alpha for specified portfolio strategies.
+        Assumes all inputs are valid, files exist, keys are present,
+        and data is sufficient and correctly formatted for calculations.
+        """
         print("\n=== Jensen's Alpha Analysis ===")
-        
-        from scipy.stats import linregress
-        import pandas as pd
-        
 
         rf_data = pd.read_csv(risk_free_csv, sep=';')
         rf_data['Month'] = pd.to_datetime(rf_data['Month'], format='%Y-%m')
         rf_data = rf_data.set_index('Month').sort_index()
 
-        rf_data['Monthly_Rate'] = rf_data['Policy Rate'] / 100
-        
-        index_returns = np.array(returns_dict["index_returns"])
-        
-        if index_returns.ndim > 1:
-            index_returns = index_returns[:, 0]
+        rf_data['Monthly_Rate'] = rf_data['Policy Rate'] / (100 * 12)
+        print(f"  Note: Assuming 'Policy Rate' in {risk_free_csv} is an ANNUALIZED percentage, converted to monthly.")
 
-        n_periods = len(index_returns)
-        
-        risk_free_rates = rf_data['Monthly_Rate'].tail(n_periods).values
-        
-        market_excess_returns = index_returns - risk_free_rates
-        
-        strategies = ["full_returns", "returns_only_returns"]
-        
-        for strategy in strategies:
-            strategy_returns = np.array(returns_dict[strategy])
-            
-            if strategy_returns.ndim > 1:
-                strategy_returns = strategy_returns[:, 0]
-                
-            strategy_excess_returns = strategy_returns - risk_free_rates
-            
-            slope, intercept, r_value, p_value, std_err = linregress(
+        all_indices = [rf_data.index]
+        strategy_keys_for_alpha = ["index_returns", "full_returns", "returns_only_returns"]
+
+        for strategy_key in strategy_keys_for_alpha:
+            strat_returns_df = returns_dict[strategy_key]
+            all_indices.append(strat_returns_df.index)
+
+        common_dates = all_indices[0]
+        for idx in all_indices[1:]:
+            common_dates = common_dates.intersection(idx)
+        common_dates = common_dates.sort_values() # Ensure sorted order
+
+        print(f"  Calculating Jensen's Alpha over {len(common_dates)} common time periods from {common_dates.min().strftime('%Y-%m-%d')} to {common_dates.max().strftime('%Y-%m-%d')}.")
+
+        risk_free_rates_aligned = rf_data.loc[common_dates, 'Monthly_Rate'].values
+
+        market_returns_aligned = returns_dict["index_returns"]['monthly_return'].loc[common_dates].values
+        market_excess_returns = market_returns_aligned - risk_free_rates_aligned
+
+        strategies_to_evaluate = ["full_returns", "returns_only_returns"]
+        calculated_alphas = {}
+
+        for strategy_key in strategies_to_evaluate:
+            strategy_returns_df = returns_dict[strategy_key]
+            strategy_returns_aligned = strategy_returns_df['monthly_return'].loc[common_dates].values
+            strategy_excess_returns = strategy_returns_aligned - risk_free_rates_aligned
+
+            slope, intercept, r_value, p_value_beta, std_err_beta = linregress(
                 market_excess_returns, strategy_excess_returns
             )
-            
+
             jensens_alpha_value = intercept
             beta = slope
-            
             annualized_alpha = jensens_alpha_value * 12
-            
-            print(f"\n--- {strategy.replace('_', ' ').title()} ---")
+            calculated_alphas[strategy_key] = jensens_alpha_value
+
+            print(f"\n--- {strategy_key.replace('_', ' ').title()} ---")
             print(f"  Jensen's Alpha (monthly): {jensens_alpha_value:.6f}")
             print(f"  Jensen's Alpha (annualized): {annualized_alpha:.4f}")
             print(f"  Beta: {beta:.4f}")
             print(f"  R-squared: {r_value**2:.4f}")
-            print(f"  P-value for alpha: {p_value:.6f}")
-            print(f"  Standard Error: {std_err:.6f}")
-            print(f"  Average Risk-Free Rate Used: {np.mean(risk_free_rates)*100:.3f}% monthly")
-            
-            if p_value < 0.05:
-                if jensens_alpha_value > 0:
-                    print(f"  → Strategy significantly outperforms market (positive alpha)")
-                else:
-                    print(f"  → Strategy significantly underperforms market (negative alpha)")
+            print(f"  P-value (for Beta): {p_value_beta:.6f}")
+            print(f"  Standard Error (of Beta): {std_err_beta:.6f}")
+            print(f"  Average Risk-Free Rate Used: {np.mean(risk_free_rates_aligned)*100:.3f}% monthly")
+
+            if p_value_beta < 0.05 and jensens_alpha_value > 0:
+                 print(f"  → Strategy shows indication of outperforming the market on a risk-adjusted basis (positive alpha, significant beta).")
+            elif p_value_beta < 0.05 and jensens_alpha_value < 0:
+                 print(f"  → Strategy shows indication of underperforming the market on a risk-adjusted basis (negative alpha, significant beta).")
             else:
-                print(f"  → No significant outperformance/underperformance vs market")
-            
+                 print(f"  → No clear indication of significant risk-adjusted outperformance/underperformance based on this regression.")
+
             if beta > 1:
-                print(f"  → Higher risk than market (beta > 1)")
-            elif beta < 1:
-                print(f"  → Lower risk than market (beta < 1)")
+                print(f"  → Higher volatility than market (beta > 1)")
+            elif beta < 1 and beta > 0 :
+                print(f"  → Lower volatility than market (0 < beta < 1)")
+            elif beta <= 0:
+                print(f"  → Negative or no correlation with market volatility (beta <= 0)")
             else:
-                print(f"  → Similar risk to market (beta ≈ 1)")
-        
-        full_returns = np.array(returns_dict["full_returns"])
-        returns_only_returns = np.array(returns_dict["returns_only_returns"])
-        
-        if full_returns.ndim > 1:
-            full_returns = full_returns[:, 0]
-        if returns_only_returns.ndim > 1:
-            returns_only_returns = returns_only_returns[:, 0]
-        
-        full_excess = full_returns - risk_free_rates
-        returns_only_excess = returns_only_returns - risk_free_rates
-        
-        _, full_alpha, _, _, _ = linregress(market_excess_returns, full_excess)
-        _, returns_only_alpha, _, _, _ = linregress(market_excess_returns, returns_only_excess)
-        
-        print(f"\n--- Alpha Comparison ---")
-        print(f"  Full Strategy Alpha: {full_alpha:.6f}")
-        print(f"  Returns-Only Strategy Alpha: {returns_only_alpha:.6f}")
-        print(f"  Difference: {full_alpha - returns_only_alpha:.6f}")
-        
-        if full_alpha > returns_only_alpha:
-            print(f"  → Full Strategy has better risk-adjusted performance")
+                print(f"  → Similar volatility to market (beta ≈ 1)")
+
+        full_alpha_val = calculated_alphas["full_returns"]
+        returns_only_alpha_val = calculated_alphas["returns_only_returns"]
+
+        print(f"\n--- Alpha Comparison (Monthly) ---")
+        print(f"  Full Strategy Alpha: {full_alpha_val:.6f}")
+        print(f"  Returns-Only Strategy Alpha: {returns_only_alpha_val:.6f}")
+        print(f"  Difference (Full - Returns-Only): {full_alpha_val - returns_only_alpha_val:.6f}")
+
+        if full_alpha_val > returns_only_alpha_val:
+            print(f"  → Full Strategy has higher monthly Jensen's Alpha.")
+        elif returns_only_alpha_val > full_alpha_val:
+            print(f"  → Returns-Only Strategy has higher monthly Jensen's Alpha.")
         else:
-            print(f"  → Returns-Only Strategy has better risk-adjusted performance")
+            print(f"  → Strategies have similar monthly Jensen's Alpha.")
+            
+    def t_test_portfolio(self, returns_dict: dict,
+                                     strategy1_key: str = "full_returns",
+                                     strategy2_key: str = "returns_only_returns"):
+        """
+        Perform a paired t-test to compare the raw monthly returns of two portfolio strategies.
+        This test looks at the absolute difference in generated returns.
+        Assumes all inputs are valid and sufficient data exists.
+        """
+        print(f"\n--- Paired T-test: {strategy1_key.replace('_', ' ').title()} vs. {strategy2_key.replace('_', ' ').title()} (Raw Monthly Returns) ---")
+
+        strat1_returns_df = returns_dict[strategy1_key]
+        strat2_returns_df = returns_dict[strategy2_key]
+
+        common_dates = strat1_returns_df.index.intersection(strat2_returns_df.index).sort_values()
+
+        strat1_aligned_returns = strat1_returns_df.loc[common_dates, 'monthly_return']
+        strat2_aligned_returns = strat2_returns_df.loc[common_dates, 'monthly_return']
+
+        num_observations = len(strat1_aligned_returns)
+
+        t_statistic, p_value = stats.ttest_rel(strat1_aligned_returns, strat2_aligned_returns, nan_policy='omit')
+
+        print(f"  Number of paired observations (months): {num_observations}")
+        print(f"  T-statistic: {t_statistic:.4f}")
+        print(f"  P-value: {p_value:.4f}")
+
+        alpha_significance = 0.05 
+        if p_value < alpha_significance:
+            print(f"  The difference in mean raw monthly returns is statistically significant at the {alpha_significance*100:.0f}% level.")
+            if t_statistic > 0:
+                print(f"  → The '{strategy1_key.replace('_', ' ').title()}' strategy has significantly higher mean raw monthly returns.")
+            else:
+                print(f"  → The '{strategy2_key.replace('_', ' ').title()}' strategy has significantly higher mean raw monthly returns.")
+        else:
+            print(f"  There is no statistically significant difference in mean raw monthly returns at the {alpha_significance*100:.0f}% level.")
+
+        return t_statistic, p_value, num_observations
